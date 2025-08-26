@@ -34,10 +34,6 @@
             margin-bottom: 30px;
             font-size: 2.5em;
             font-weight: 700;
-            background: linear-gradient(45deg, #228B22, #355E3B);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
         }
 
         .status-indicator {
@@ -169,20 +165,6 @@
             cursor: not-allowed;
         }
 
-        .btn-danger {
-            background: linear-gradient(45deg, #ff6b6b, #ee5a52);
-            padding: 8px 15px;
-            font-size: 14px;
-            margin-left: 10px;
-        }
-
-        .btn-edit {
-            background: linear-gradient(45deg, #32CD32, #228B22);
-            padding: 8px 15px;
-            font-size: 14px;
-            margin-right: 10px;
-        }
-
         .loading {
             display: inline-block;
             width: 20px;
@@ -258,11 +240,6 @@
             margin-bottom: 15px;
         }
 
-        .item-actions {
-            display: flex;
-            justify-content: flex-end;
-        }
-
         .search-container {
             margin-bottom: 20px;
         }
@@ -297,6 +274,27 @@
             font-weight: 600;
         }
 
+        .admin-contact {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(34, 139, 34, 0.1);
+            border-radius: 10px;
+            color: #355E3B;
+            font-size: 0.9em;
+            border: 1px solid rgba(34, 139, 34, 0.2);
+        }
+
+        .admin-contact a {
+            color: #228B22;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .admin-contact a:hover {
+            text-decoration: underline;
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 20px;
@@ -304,10 +302,6 @@
             
             .items-grid {
                 grid-template-columns: 1fr;
-            }
-            
-            .item-actions {
-                justify-content: center;
             }
         }
     </style>
@@ -346,7 +340,6 @@
                 <button class="btn" onclick="addContact()" id="contactSubmitBtn">
                     <span class="btn-text">Add Contact</span>
                 </button>
-                <button class="btn" onclick="cancelContactEdit()" id="contactCancelBtn" style="display: none;">Cancel</button>
             </div>
 
             <div class="search-container">
@@ -354,6 +347,10 @@
             </div>
 
             <div class="item-count" id="contactCount">0 contacts</div>
+            
+            <div class="admin-contact">
+                📝 Need to edit or delete content? Contact the site administrator
+            </div>
 
             <div class="items-grid" id="contactsGrid">
                 <div class="empty-state">
@@ -383,7 +380,6 @@
                 <button class="btn" onclick="addEvent()" id="eventSubmitBtn">
                     <span class="btn-text">Add Event</span>
                 </button>
-                <button class="btn" onclick="cancelEventEdit()" id="eventCancelBtn" style="display: none;">Cancel</button>
             </div>
 
             <div class="search-container">
@@ -391,6 +387,10 @@
             </div>
 
             <div class="item-count" id="eventCount">0 events</div>
+            
+            <div class="admin-contact">
+                📝 Need to edit or delete content? Contact the site administrator
+            </div>
 
             <div class="items-grid" id="eventsGrid">
                 <div class="empty-state">
@@ -431,8 +431,6 @@
 
         let contacts = [];
         let events = [];
-        let editingContactIndex = -1;
-        let editingEventIndex = -1;
 
         function updateStatus(status, message) {
             const statusElement = document.getElementById('status');
@@ -449,9 +447,7 @@
                 textSpan.innerHTML = '<span class="loading"></span>Saving...';
             } else {
                 button.disabled = false;
-                textSpan.innerHTML = buttonId.includes('contact') ? 
-                    (editingContactIndex >= 0 ? 'Update Contact' : 'Add Contact') :
-                    (editingEventIndex >= 0 ? 'Update Event' : 'Add Event');
+                textSpan.innerHTML = buttonId.includes('contact') ? 'Add Contact' : 'Add Event';
             }
         }
 
@@ -494,16 +490,7 @@
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
 
-                if (editingContactIndex >= 0) {
-                    const contactId = contacts[editingContactIndex].id;
-                    await db.collection('contacts').doc(contactId).update(contact);
-                    editingContactIndex = -1;
-                    document.querySelector('#contacts-tab .btn .btn-text').textContent = 'Add Contact';
-                    document.getElementById('contactCancelBtn').style.display = 'none';
-                } else {
-                    await db.collection('contacts').add(contact);
-                }
-
+                await db.collection('contacts').add(contact);
                 clearContactForm();
                 await loadContacts();
             } catch (error) {
@@ -545,56 +532,13 @@
                 return;
             }
 
-            grid.innerHTML = filteredContacts.map((contact, index) => {
-                const originalIndex = contacts.findIndex(c => c.id === contact.id);
-                return `
-                    <div class="item-card">
-                        <div class="item-name">${escapeHtml(contact.name)}</div>
-                        <div class="item-description">${escapeHtml(contact.description)}</div>
-                        <div class="contact-phone">📞 ${escapeHtml(contact.phone)}</div>
-                        <div class="item-actions">
-                            <button class="btn btn-edit" onclick="editContact(${originalIndex})">Edit</button>
-                            <button class="btn btn-danger" onclick="deleteContact('${contact.id}', ${originalIndex})">Delete</button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function editContact(index) {
-            const contact = contacts[index];
-            document.getElementById('contact-name').value = contact.name;
-            document.getElementById('contact-description').value = contact.description;
-            document.getElementById('contact-phone').value = contact.phone;
-            
-            editingContactIndex = index;
-            document.querySelector('#contacts-tab .btn .btn-text').textContent = 'Update Contact';
-            document.getElementById('contactCancelBtn').style.display = 'inline-block';
-            
-            document.querySelector('#contacts-tab .form-section').scrollIntoView({ behavior: 'smooth' });
-        }
-
-        function cancelContactEdit() {
-            editingContactIndex = -1;
-            clearContactForm();
-            document.querySelector('#contacts-tab .btn .btn-text').textContent = 'Add Contact';
-            document.getElementById('contactCancelBtn').style.display = 'none';
-        }
-
-        async function deleteContact(id, index) {
-            if (!confirm('Are you sure you want to delete this contact?')) return;
-
-            try {
-                await db.collection('contacts').doc(id).delete();
-                await loadContacts();
-                
-                if (editingContactIndex === index) {
-                    cancelContactEdit();
-                }
-            } catch (error) {
-                console.error('Error deleting contact:', error);
-                alert('Failed to delete contact. Please try again.');
-            }
+            grid.innerHTML = filteredContacts.map((contact) => `
+                <div class="item-card">
+                    <div class="item-name">${escapeHtml(contact.name)}</div>
+                    <div class="item-description">${escapeHtml(contact.description)}</div>
+                    <div class="contact-phone">📞 ${escapeHtml(contact.phone)}</div>
+                </div>
+            `).join('');
         }
 
         function searchContacts() {
@@ -633,16 +577,7 @@
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
 
-                if (editingEventIndex >= 0) {
-                    const eventId = events[editingEventIndex].id;
-                    await db.collection('events').doc(eventId).update(event);
-                    editingEventIndex = -1;
-                    document.querySelector('#events-tab .btn .btn-text').textContent = 'Add Event';
-                    document.getElementById('eventCancelBtn').style.display = 'none';
-                } else {
-                    await db.collection('events').add(event);
-                }
-
+                await db.collection('events').add(event);
                 clearEventForm();
                 await loadEvents();
             } catch (error) {
@@ -684,8 +619,7 @@
                 return;
             }
 
-            grid.innerHTML = filteredEvents.map((event, index) => {
-                const originalIndex = events.findIndex(e => e.id === event.id);
+            grid.innerHTML = filteredEvents.map((event) => {
                 const formattedDate = new Date(event.date).toLocaleDateString('en-US', {
                     weekday: 'long',
                     year: 'numeric',
@@ -698,49 +632,9 @@
                         <div class="item-name">${escapeHtml(event.name)}</div>
                         <div class="item-description">${escapeHtml(event.description)}</div>
                         <div class="event-date">📅 ${formattedDate}</div>
-                        <div class="item-actions">
-                            <button class="btn btn-edit" onclick="editEvent(${originalIndex})">Edit</button>
-                            <button class="btn btn-danger" onclick="deleteEvent('${event.id}', ${originalIndex})">Delete</button>
-                        </div>
                     </div>
                 `;
             }).join('');
-        }
-
-        function editEvent(index) {
-            const event = events[index];
-            document.getElementById('event-name').value = event.name;
-            document.getElementById('event-description').value = event.description;
-            document.getElementById('event-date').value = event.date;
-            
-            editingEventIndex = index;
-            document.querySelector('#events-tab .btn .btn-text').textContent = 'Update Event';
-            document.getElementById('eventCancelBtn').style.display = 'inline-block';
-            
-            document.querySelector('#events-tab .form-section').scrollIntoView({ behavior: 'smooth' });
-        }
-
-        function cancelEventEdit() {
-            editingEventIndex = -1;
-            clearEventForm();
-            document.querySelector('#events-tab .btn .btn-text').textContent = 'Add Event';
-            document.getElementById('eventCancelBtn').style.display = 'none';
-        }
-
-        async function deleteEvent(id, index) {
-            if (!confirm('Are you sure you want to delete this event?')) return;
-
-            try {
-                await db.collection('events').doc(id).delete();
-                await loadEvents();
-                
-                if (editingEventIndex === index) {
-                    cancelEventEdit();
-                }
-            } catch (error) {
-                console.error('Error deleting event:', error);
-                alert('Failed to delete event. Please try again.');
-            }
         }
 
         function searchEvents() {
