@@ -213,6 +213,21 @@
             box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
         }
 
+        .item-card.past-event {
+            opacity: 0.6;
+            background: #f5f5f5;
+        }
+
+        .item-card.past-event::before {
+            background: linear-gradient(45deg, #999, #666);
+        }
+
+        .item-card.past-event .item-name,
+        .item-card.past-event .item-description,
+        .item-card.past-event .event-date {
+            color: #666;
+        }
+
         .item-name {
             font-size: 1.3em;
             font-weight: 700;
@@ -619,7 +634,32 @@
                 return;
             }
 
-            grid.innerHTML = filteredEvents.map((event) => {
+            // Separate upcoming and past events
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            const upcomingEvents = [];
+            const pastEvents = [];
+            
+            filteredEvents.forEach(event => {
+                const eventDate = new Date(event.date);
+                eventDate.setHours(0, 0, 0, 0);
+                
+                if (eventDate >= today) {
+                    upcomingEvents.push(event);
+                } else {
+                    pastEvents.push(event);
+                }
+            });
+
+            // Combine with upcoming first, then past
+            const sortedEvents = [...upcomingEvents, ...pastEvents];
+
+            grid.innerHTML = sortedEvents.map((event) => {
+                const eventDate = new Date(event.date);
+                eventDate.setHours(0, 0, 0, 0);
+                const isPast = eventDate < today;
+                
                 const formattedDate = new Date(event.date).toLocaleDateString('en-US', {
                     weekday: 'long',
                     year: 'numeric',
@@ -628,7 +668,7 @@
                 });
                 
                 return `
-                    <div class="item-card">
+                    <div class="item-card ${isPast ? 'past-event' : ''}">
                         <div class="item-name">${escapeHtml(event.name)}</div>
                         <div class="item-description">${escapeHtml(event.description)}</div>
                         <div class="event-date">📅 ${formattedDate}</div>
